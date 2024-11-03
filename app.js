@@ -22,7 +22,9 @@ async function requestNotificationPermission() {
 }
 
 // Call this when app starts
-requestNotificationPermission();
+document.addEventListener('DOMContentLoaded', () => {
+     requestNotificationPermission();
+});
 
 const firebaseConfig = {
      apiKey: "AIzaSyCHKs8Mtt0tH1d0SfBcY8T1_y5DV7DdzLE",
@@ -236,6 +238,12 @@ function loadMessages() {
                     messageElement.className = `message ${msg.senderId === currentUser.uid ? 'sent' : 'received'}`;
                     messageElement.textContent = msg.text;
                     messages.appendChild(messageElement);
+
+                    // Show notification for new messages
+                    if (msg.senderId !== currentUser.uid &&
+                         msg.timestamp > (Date.now() - 1000)) { // Check if message is new (within last second)
+                         showNotification(msg.text);
+                    }
                });
                messages.scrollTop = messages.scrollHeight;
           }
@@ -257,67 +265,35 @@ messageInput.addEventListener('keypress', (e) => {
      }
 });
 
-// Send message function
+// Modify sendMessage function
 async function sendMessage(customMessage = null, recipientId = null) {
      const message = customMessage || messageInput.value.trim();
      const recipient = recipientId || selectedUser;
 
-     if ((!message && !imageInput.files[0]) || !recipient) return;
-
-     let messageContent = message;
-     let messageType = 'text';
-
-     // If there's an image file, convert it to base64
-     if (imageInput?.files[0]) {
-          try {
-               messageContent = await convertImageToBase64(imageInput.files[0]);
-               messageType = 'image';
-          } catch (error) {
-               console.error('Error converting image:', error);
-               alert('Failed to process image. Please try again.');
-               return;
-          }
-     }
+     if (!message || !recipient) return;
 
      // Create message element
      const messageElement = document.createElement('div');
      messageElement.className = 'message sent';
-
-     if (messageType === 'image') {
-          const img = document.createElement('img');
-          img.src = messageContent;
-          img.className = 'message-image';
-          messageElement.appendChild(img);
-     } else {
-          // Make sure we're using the actual text content
-          messageElement.textContent = typeof messageContent === 'object' ?
-               messageContent.content || messageContent.text || '' :
-               messageContent;
-     }
+     messageElement.textContent = message;
 
      messages.appendChild(messageElement);
      messageInput.value = '';
-     if (imageInput) imageInput.value = ''; // Clear image input if it exists
      messages.scrollTop = messages.scrollHeight;
 
-     // Handle regular chat message
-     if (!isBot) {
-          const chatId = getChatId(currentUser.uid, recipient);
-          const messagesRef = ref(database, `chats/${chatId}/messages`);
+     // Send message to database
+     const chatId = getChatId(currentUser.uid, recipient);
+     const messagesRef = ref(database, `chats/${chatId}/messages`);
 
-          try {
-               await push(messagesRef, {
-                    type: messageType,
-                    content: typeof messageContent === 'object' ?
-                         messageContent.content || messageContent.text || '' :
-                         messageContent,
-                    senderId: currentUser.uid,
-                    timestamp: serverTimestamp()
-               });
-          } catch (error) {
-               console.error('Error sending message:', error);
-               alert('Failed to send message. Please try again.');
-          }
+     try {
+          await push(messagesRef, {
+               text: message,
+               senderId: currentUser.uid,
+               timestamp: serverTimestamp()
+          });
+     } catch (error) {
+          console.error('Error sending message:', error);
+          alert('Failed to send message. Please try again.');
      }
 }
 
