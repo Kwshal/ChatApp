@@ -263,14 +263,13 @@ messageInput.addEventListener('keypress', (e) => {
           e.preventDefault();
           sendMessage();
      }
-});
+}, { passive: false });
 
 // Modify sendMessage function
-async function sendMessage(customMessage = null, recipientId = null) {
-     const message = customMessage || messageInput.value.trim();
-     const recipient = recipientId || selectedUser;
+async function sendMessage() {
+     const message = messageInput.value.trim();
 
-     if (!message || !recipient) return;
+     if (!message || !selectedUser) return;
 
      // Create message element
      const messageElement = document.createElement('div');
@@ -282,7 +281,7 @@ async function sendMessage(customMessage = null, recipientId = null) {
      messages.scrollTop = messages.scrollHeight;
 
      // Send message to database
-     const chatId = getChatId(currentUser.uid, recipient);
+     const chatId = getChatId(currentUser.uid, selectedUser);
      const messagesRef = ref(database, `chats/${chatId}/messages`);
 
      try {
@@ -787,3 +786,25 @@ if (wallpaperButton && wallpaperInput) {
           }
      });
 }
+
+// Modify scroll-related event listeners to be passive
+messageInput.addEventListener('keypress', (e) => {
+     if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+     }
+}, { passive: false }); // We need preventDefault, so can't be passive
+
+// For any touch or wheel events, make them passive
+messages.addEventListener('touchstart', () => {
+     // Handle touch start
+}, { passive: true });
+
+messages.addEventListener('wheel', () => {
+     // Handle wheel event
+}, { passive: true });
+
+// If you have any scroll handlers
+messages.addEventListener('scroll', () => {
+     // Handle scroll
+}, { passive: true });
